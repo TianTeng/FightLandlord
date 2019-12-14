@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FreeSql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -54,16 +55,39 @@ namespace BetGame.DDZ.WebHost2
             services.AddScoped<CustomExceptionFilter>();
             services.AddControllersWithViews().AddNewtonsoftJson();
             services.AddRazorPages();
+
+            services.AddResponseCompression(opts =>
+            {
+                opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                    new[] { "application/octet-stream" });
+            });
         }
 
         public void Configure(IApplicationBuilder app)
         {
+            app.UseResponseCompression();
+
             app.UseDeveloperExceptionPage();
 
-            app.UseRouting();
-            app.UseEndpoints(config => config.MapControllers());
-            app.UseDefaultFiles();
+            app.UseImServer(new ImServerOptions
+            {
+                Redis = RedisHelper.Instance,
+                Servers = new[] { Configuration["imserver"] }, //ºØ»∫≈‰÷√
+                Server = Configuration["imserver"]
+            });
+
             app.UseStaticFiles();
+            app.UseClientSideBlazorFiles<WasmClient.Startup>();
+
+            app.UseRouting();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapDefaultControllerRoute();
+                endpoints.MapFallbackToClientSideBlazor<WasmClient.Startup>("index.html");
+            });
+            //app.UseDefaultFiles();
+            //app.UseStaticFiles();
 
             ImHelper.Initialization(new ImClientOptions
             {

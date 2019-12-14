@@ -1,0 +1,739 @@
+﻿@page "/"
+@inject HttpClient Http
+@inject LocalStorage localstorage
+@*@inject ClientWebSocket clientWebSocket*@
+@inject ApiService ApiService
+@inject IAuthorizationService AuthorizationService
+@inject FunctionHelper FunctionHelper
+@inject IJSRuntime _jsRuntime
+@inject CustomAuthStateProvider CustomAuthStateProvider
+<AuthorizeView>
+    <Authorized>
+        @if (wsConnectState == 1010)
+        {
+            <div>
+                正在与 WebSocket 服务器连线。。。
+            </div>
+        }
+        <div class="row">
+            <div class="col-4">欢迎您，@player?.Nick，积分：@player?.Score</div>
+            <div class="col-8">提示：每桌三人，坐满自动开局(Chrome PC 版本访问)，github: <a href="https://github.com/saber-wang/FightLandlord" target="_blank">https://github.com/saber-wang/FightLandlord</a></div>
+        </div>
+        @if (stage == "选择桌位")
+        {<div class="row mt-3">
+                @foreach (var desk in desks)
+                {
+                    <div class="col-3 border-info m-3">
+                        @desk.Title：
+                        @if (desk.player1 != null)
+                        {
+                            var v = $"{desk.player1.Nick}(积分：{desk.player1.Score})";
+                            <input type="button" @bind="v" style="background-color:@(player?.Id == desk.player1.Id ? "sandybrown" : "lightskyblue")" @onclick="@(async e=>{if (player?.Id == desk.player1.Id)await Standup();})" />}
+                        else
+                        {
+                            <input type="button" value="坐下" @onclick="@(async e=>await Sitdown(desk.Id, 1))" />
+                        }
+                        @if (desk.player2 != null)
+                        {
+                            var v = $"{desk.player2.Nick}(积分：{desk.player2.Score})";
+                            <input type="button" @bind="v" style="background-color:@(player?.Id == desk.player2.Id ? "sandybrown" : "lightskyblue")" @onclick="@(async e=>{if (player?.Id == desk.player2.Id)await Standup();})" />
+                        }
+                        else
+                        {
+                            <input type="button" value="坐下" @onclick="@(async e=>await Sitdown(desk.Id, 2))" />
+                        }
+                        @if (desk.player3 != null)
+                        {
+                            var v = $"{desk.player3.Nick}(积分：{desk.player3.Score})";
+                            <input type="button" @bind="v" style="background-color:@(player?.Id == desk.player3.Id ? "sandybrown" : "lightskyblue")" @onclick="@(async e=>{if (player?.Id == desk.player3.Id)await Standup();})" />
+                        }
+                        else
+                        {
+                            <input type="button" value="坐下" @onclick="@(async e=>await Sitdown(desk.Id, 3))" />
+                        }
+
+                    </div>
+                }
+            </div>
+        }
+        <!--游戏环节开始-->
+        @if (stage == "叫地主" || stage == "斗地主")
+        {
+            for (var i = 0; i < ddzdata.players.Count; i++)
+            {
+                var gpidx = i;
+                var gp = ddzdata.players[gpidx];
+                <div>
+                    <div style="padding: 20px 20px 0px 20px; height:260px; border:1px solid #ddd;">
+                        <div style="float:left; width:70%; margin-top:60px; position: absolute;">
+                            @for (var p = 0; p < gp.pokerText.Count(); p++)//gp.pokerText
+                            {
+                                var pkIndex = p;
+                                //var pk = gp.pokerText[pkIndex];
+                                <div @onmousedown="@(e=> { if (gp.id == player.Nick) mousedownPoker(gp, pkIndex, gp.poker[pkIndex]); })"
+                                     @onmousemove="@(e=> { if (gp.id == player.Nick) mousemovePoker(gp, pkIndex, gp.poker[pkIndex]); })"
+                                     @onmouseup="@(e=> { if (gp.id == player.Nick) mouseupPoker(gp, pkIndex, gp.poker[pkIndex]); })"
+                                     class="poker" unselectable="on"
+                                     style="overflow:hidden;cursor:@(gp.id == player.Nick?"pointer" : null);left:@((pkIndex + 1) * 32)px;top:@(updateindex>0&& selectedPokers[gp.poker[pkIndex]]!=null? "-32px" : "");color: @(gp.poker[pkIndex] < 53 && (gp.poker[pkIndex] % 4 == 1 || gp.poker[pkIndex] % 4 == 3) || gp.poker[pkIndex] == 52 ? "black" : "red");">
+                                    <div style="width:110px;height: 156px; overflow: hidden;">
+                                        <span class="glyphicon" name="@allpks[gp.poker[pkIndex]]"></span>
+                                    </div>
+                                </div>
+                            }
+                            <div style="clear:both;"></div>
+                        </div>
+                        <div style="float:right;">
+                            <div style="text-align: right;">
+                                @if (gp.status == "托管")
+                                {<span class="mr-3 text-info">托管中...</span>}
+                                @gp.id <span style="color: @(gp.role == "地主" ? "red" : gp.role == "农民" ? "green" : "#aaa")">【@gp.role】</span>
+                            </div>
+                            @if (stage == "叫地主" && gpidx == ddzdata.playerIndex)
+                            {
+                                <div style="margin-top:36px;">
+                                    @if (gp.id == player.Nick)
+                                    {
+                                        <div>
+                                            @for (var maddtions = 1; maddtions <= ddzdata.multipleAdditionMax; maddtions++)
+                                            {
+                                                var maddtion = maddtions;
+                                                if (maddtion > ddzdata.multipleAddition)
+                                                {
+                                                    var maddtionf = maddtion + "分";
+                                                    <input type="button" @onclick="@(async e => await SelectLandlord(gp.id, maddtion))" class="btn-primary" @bind="maddtionf" />
+                                                }
+                                            }
+                                            <input type="button" @onclick="@(async e =>await SelectFarmer(gp.id))" class="btn-primary" value="不叫" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="font-weight-bold">等待操作(@ddzdata.operationTimeoutSeconds)</div>
+                                    }
+                                </div>
+                            }
+                            @if (stage == "斗地主" && gpidx == ddzdata.playerIndex)
+                            {
+                                <div style="margin-top:36px;">
+                                    @if (gp.id == player.Nick)
+                                    {
+                                        <div>
+                                            @if (ddzdata.chupai.Count > 0 && ddzdata.chupai[ddzdata.chupai.Count - 1].playerIndex != ddzdata.playerIndex)
+                                            {
+                                                <input type="button" @onclick="@(async e => await Pass(gp.id))" class="btn-info" value="不要" />
+                                            }
+                                            <input type="button" @onclick="@(async e => await Play(gp.id))" class="btn-info" value="出牌" />
+                                            <input type="button" @onclick="@(async e => await PlayTips(gp.id))" class="btn-primary" value="提示" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="font-weight-bold">等待操作(@ddzdata.operationTimeoutSeconds)</div>
+                                    }
+                                </div>
+                            }
+                            @if (gp.status == "托管" && gpidx == ddzdata.playerIndex)
+                            {
+                                <div style="margin-top:36px;">
+                                    <input type="button" @onclick="@(async e => await CancelAutoPlay())" class="btn-primary" value="正在托管中，点击取消托管" />
+                                </div>
+                            }
+                        </div>
+                        <div style="clear:both;"></div>
+                    </div>
+                </div>
+            }
+        }
+        @if (stage == "斗地主" || stage == "游戏结束")
+        {<div style="background:#eee;padding: 20px 20px 0px 20px;">
+                <h3>底牌</h3>
+                <div>
+                    @for (var i = 0; i < ddzdata.dipaiText.Length; i++)
+                    {
+                        var pkIndex = i;
+                        var pk = ddzdata.dipaiText[pkIndex];
+                        <span style="font-family: 'PokerFace';font-size:80px; cursor: pointer;color: @(ddzdata.dipai[pkIndex] < 53 && (ddzdata.dipai[pkIndex] % 4 == 1 || ddzdata.dipai[pkIndex] % 4 == 3) || ddzdata.dipai[pkIndex] == 52 ? "black" : "red")"><!--{@pk}-->@allpks[ddzdata.dipai[pkIndex]]</span>
+                    }
+                    @if (ddzdata.chupai.Count > 0 && ddzdata.chupai[ddzdata.chupai.Count - 1].result != null)
+                    {
+                        <span style="margin-left:120px;">
+                            @for (var i = 0; i < ddzdata.chupai[ddzdata.chupai.Count - 1].result.text.Length; i++)
+                            {
+                                var pkIndex = i;
+                                var pk = ddzdata.chupai[ddzdata.chupai.Count - 1].result.text[pkIndex];
+                                <span style="font-family: 'PokerFace';font-size: 60px;cursor: pointer;color: @(ddzdata.chupai[ddzdata.chupai.Count - 1].result.value[pkIndex] < 53 && (ddzdata.chupai[ddzdata.chupai.Count - 1].result.value[pkIndex] % 4 == 1 || ddzdata.chupai[ddzdata.chupai.Count - 1].result.value[pkIndex] % 4 == 3) || ddzdata.chupai[ddzdata.chupai.Count - 1].result.value[pkIndex] == 52 ? "black" : "red")"><!--{@pk}-->@allpks[ddzdata.chupai[ddzdata.chupai.Count - 1].result.value[pkIndex]]</span>
+                            }
+                        </span>
+                    }
+                    @if (stage == "游戏结束" && (ddzdata.players[0].status == "逃跑" || ddzdata.players[1].status == "逃跑" || ddzdata.players[2].status == "逃跑"))
+                    {
+                        <div style="margin-left:120px;">
+                            游戏结束,
+                            @foreach (var dp in ddzdata.players)
+                            {
+                                if (dp.status == "逃跑")
+                                {
+                                    <span>【@dp.id】 逃跑, 扣除 @(dp.score * -1) 分</span>
+                                }
+                            }
+
+                            炸弹: @ddzdata.bong, 倍数: @ddzdata.multipleAddition
+                            @foreach (var dp in ddzdata.players)
+                            {
+                                if (dp.status != "逃跑")
+                                {
+                                    <span> @dp.id: +@dp.score</span>
+                                }
+                            }。
+                        </div>
+                    }
+                    else if (stage == "游戏结束" && ddzdata.chupai.Count > 0)
+                    {
+                        <div style="margin-left:120px;">
+                            游戏结束, 【@(ddzdata.players[ddzdata.chupai[ddzdata.chupai.Count - 1].playerIndex].role)】 胜利,
+
+                            炸弹: @ddzdata.bong, 倍数: @ddzdata.multipleAddition
+                            @foreach (var dp in ddzdata.players)
+                            {
+                                if (dp.status != "逃跑")
+                                {
+                                    <span> @dp.id: +@dp.score</span>
+                                }
+                            }。
+                        </div>
+                    }
+                    else if (stage == "游戏结束" && ddzdata.chupai.Count == 0)
+                    {
+                        <div style="margin-left:120px;">
+                            游戏结束，没有人当【地主】。
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        <!--游戏环节结束-->
+        @if (wsConnectState == 1)
+        {
+            <div>
+                <hr />
+                @if (currentChannel.chan != null)
+                {
+                    <div>
+                        <h1>聊天室：@currentChannel.chan</h1>
+                        <div>本项目采用开源IM：<a href="https://github.com/2881099/im" target="_blank">https://github.com/2881099/im</a></div>
+                        <input type="text" style="width:300px;" @bind="inputChannelMsg.content" />
+                        <input type="button" value="发送" @onclick="@(async e=> { if (string.IsNullOrWhiteSpace(inputChannelMsg.content)) { await FunctionHelper.Alert("请输入内容"); return; } await SendChannelMsg(inputChannelMsg); inputChannelMsg.content = ""; })" />
+                        <div class="pre-scrollable mt-3" style="height:300px;">
+                            @foreach (var msg in currentChannel.msgs)
+                            {
+                                inputChannelMsg mm = null;
+                                try
+                                {
+                                    mm = JsonSerializer.Deserialize<inputChannelMsg>(msg.GetProperty("msg").ToString());
+                                }
+                                catch { }
+                                <div style="margin-bottom:9px;">
+
+                                    @if (mm?.type == "welcome")
+                                    {
+                                        <div>欢迎 @(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) 加入</div>
+                                    }
+                                    else if (mm?.type == "text")
+                                    {
+                                        var time = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddMilliseconds(Convert.ToDouble(msg.GetProperty("time").ToString()));
+                                        <div>
+                                            <div style="color:#aaa;">@(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) @time.ToString() 说：@mm.content</div>
+                                        </div>
+                                    }
+                                    else if (msg.GetProperty("type").ValueKind != JsonValueKind.Null && msg.GetProperty("msg").ValueKind != JsonValueKind.Null)
+                                    {
+                                        <div>
+                                            @msg.GetProperty("msg").ToString()
+                                        </div>
+                                    }
+                                    else
+                                    {<div>
+                                            @msg.ToString()
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="text-center">
+            <h3>.NETCore斗地主服务端 + Blazor(WebAssembly)前端（多端网络版）</h3>
+            <div>
+
+                <p>声明：本项目谥在学习，任何用于违法用途的行为与作者无关。</p>
+
+                <p>如果对本项目感兴趣，欢迎加入QQ讨论群：8578575</p>
+
+                <p>目前尚处于研阶段，目前使用 ImCore 实现多用户实时游戏。</p>
+
+                <p>github: <a href="https://github.com/saber-wang/FightLandlord" target="_blank">https://github.com/saber-wang/FightLandlord</a></p>
+                
+                <p>Blazor前端地址: <a href="https://github.com/saber-wang/FightLandlord/tree/master/src/BetGame.DDZ.WasmClient" target="_blank">https://github.com/saber-wang/FightLandlord/tree/master/src/BetGame.DDZ.WasmClient</a></p>
+                <p>&nbsp;</p>
+            </div>
+            <p>
+                <input @bind="editNick" placeholder="Enter Nickname..." style="width:300px" required />
+                @if (!GetOrAddPlayering)
+                {
+                    <input type="button" @onclick="GetOrAddPlayer" value="创建玩家!" />
+                }
+                else
+                {
+                    <input type="button" value="Loading..." />
+                }
+            </p>
+            <p>&nbsp;</p>
+            <div class="poker text-break" style="font-family:PokerFace;font-size:80px;width:80%;">CpPcDqQdErReFsSfGtTgHuUhIvViJwWjKxXkLyYlMzZmAnNaBoOb??</div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code
+{
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    //protected override async Task OnInitializedAsync()
+    //{
+    //    await GetPlayer();
+    //}
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await GetPlayer();
+            wsConnectState = 1010;
+            //onopen();
+            //onclose();
+            //onmessage();
+
+        }
+        //return Task.CompletedTask;
+    }
+    #region 定义参数
+    private Player player { get; set; }
+    private string stage = "";
+    private int wsConnectState = 0;
+    private string editNick { get; set; }
+    private bool GetOrAddPlayering { get; set; } = false;
+    private bool Sitdowning { get; set; } = false;
+    //55，最后一个做牌面，其他玩家的手牌为54
+    private Char[] allpks = "CpPcDqQdErReFsSfGtTgHuUhIvViJwWjKxXkLyYlMzZmAnNaBoOb???".ToCharArray();
+    private List<Desk> desks { get; set; } = new List<Desk>();
+
+    private currentChannel currentChannel { get; set; } = new currentChannel { chan = "ddz_chan", msgs = new List<JsonElement>() };
+    private inputChannelMsg inputChannelMsg { get; set; } = new inputChannelMsg { type = "text", content = "" };
+
+    private int?[] selectedPokers { get; set; } = new int?[55];
+    private string ddzid { get; set; } = "";
+    private List<int[]> playTips { get; set; } = new List<int[]>();//提示出牌
+    private int playTipsIndex { get; set; } = 0;
+    private int updateindex { get; set; } = 0;
+    private GameInfo ddzdata { get; set; } = new GameInfo
+    {
+        bong = 0,
+        chupai = new List<HandPokerInfo>(),
+        dipai = new int[0],
+        multiple = 1,
+        multipleAddition = 0,
+        multipleAdditionMax = 3,
+        playerIndex = -1,
+        operationTimeout = "",
+        operationTimeoutSeconds = 0,
+
+        players = new List<GamePlayer>
+{
+            new GamePlayer
+            {
+                 //player=new Player{ Id="玩家1", Nick= null, Balance= 0, IsOnline= false, GameState= "Idle"},
+                 poker=  new List<int>(),
+                 pokerText=  new string[0],
+                 pokerInit=  new List<int>(),
+                 role= "未知",
+                 score=0,
+                 status="正常"
+            },
+            new GamePlayer
+            {
+                 //player=new Player{ Id="玩家2", Nick= null, Balance= 0, IsOnline= false, GameState= "Idle"},
+                 poker=  new List<int>(),
+                 pokerText=  new string[0],
+                 pokerInit=  new List<int>(),
+                 role= "未知",
+                 score=0,
+                 status="正常"
+            },
+            new GamePlayer
+            {
+                 //player=new Player{ Id="玩家3", Nick= null, Balance= 0, IsOnline= false, GameState= "Idle"},
+                 poker=  new List<int>(),
+                 pokerText=  new string[0],
+                 pokerInit=  new List<int>(),
+                 role= "未知",
+                 score=0,
+                 status="正常"
+            }
+        },
+
+    };
+    private GamePlayer mouseDownPlayer { get; set; }
+    private int mouseDownPlayerIndex { get; set; } = 0;
+    #endregion
+    private async Task GetPlayer()
+    {
+        var user = await authenticationStateTask;
+        if (user?.User?.Identity?.IsAuthenticated == true)
+        {
+            player = new Player
+            {
+                Balance = Convert.ToInt32(user.User.FindFirst(nameof(Player.Balance)).Value),
+                GameState = user.User.FindFirst(nameof(Player.GameState)).Value,
+                Id = user.User.FindFirst(nameof(Player.Id)).Value,
+                IsOnline = Convert.ToBoolean(user.User.FindFirst(nameof(Player.IsOnline)).Value),
+                Nick = user.User.FindFirst(nameof(Player.Nick)).Value,
+                Score = Convert.ToInt32(user.User.FindFirst(nameof(Player.Score)).Value),
+            };
+            await ConnectWebsocket();
+        }
+    }
+
+    private async Task GetOrAddPlayer(MouseEventArgs e)
+    {
+        GetOrAddPlayering = true;
+        player = await ApiService.GetOrAddPlayer(editNick);
+        this.GetOrAddPlayering = false;
+
+        if (player != null)
+        {
+            CustomAuthStateProvider.NotifyAuthenticationState(player);
+            await ConnectWebsocket();
+        }
+
+    }
+    [JSInvokable]
+    public async Task ConnectWebsocket()
+    {
+        Console.WriteLine("ConnectWebsocket");
+        var serviceurl = await ApiService.ConnectWebsocket();
+        //TODO ConnectWebsocket
+        if (!string.IsNullOrWhiteSpace(serviceurl))
+            await _jsRuntime.InvokeAsync<string>("newWebSocket", serviceurl, DotNetObjectReference.Create(this));
+    }
+    private async Task Sitdown(int deskId, int pos)
+    {
+        if (this.Sitdowning) await FunctionHelper.Alert("等待上一次操作完成...");
+        else
+        {
+            this.Sitdowning = true;
+            await ApiService.Sitdown(deskId, pos);
+            this.Sitdowning = false;
+        }
+
+    }
+    private async Task Standup()
+    {
+        if (this.Sitdowning) await FunctionHelper.Alert("等待上一次操作完成...");
+        else
+        {
+            this.Sitdowning = true;
+            await ApiService.Standup();
+            this.Sitdowning = false;
+        }
+
+    }
+    private async Task GetDesks()
+    {
+        await SendChannelMsg(new inputChannelMsg { type = "welcome" });
+        var ds = await ApiService.GetDesks();
+        if (ds != null && ds.Any()) desks.AddRange(ds);
+        this.stage = "选择桌位";
+    }
+    [JSInvokable]
+    public async Task onopen()
+    {
+
+        Console.WriteLine("websocket connect");
+        wsConnectState = 1;
+        await GetDesks();
+        StateHasChanged();
+    }
+    [JSInvokable]
+    public void onclose()
+    {
+        Console.WriteLine("websocket disconnect");
+        wsConnectState = 0;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task onmessage(object msgobjer)
+    {
+        try
+        {
+            var jsonDocument = JsonSerializer.Deserialize<object>(msgobjer.ToString());
+            if (jsonDocument is JsonElement msg)
+            {
+                if (msg.TryGetProperty("type", out var element) && element.ValueKind == JsonValueKind.String)
+                {
+                    Console.WriteLine(element.ToString());
+                    if (element.GetString() == "Sitdown")
+                    {
+                        Console.WriteLine(msg.GetProperty("msg").GetString());
+                        var deskId = msg.GetProperty("deskId").GetInt32();
+                        foreach (var desk in desks)
+                        {
+                            if (desk.Id.Equals(deskId))
+                            {
+                                var pos = msg.GetProperty("pos").GetInt32();
+                                Console.WriteLine(pos);
+                                var player = JsonSerializer.Deserialize<Player>(msg.GetProperty("player").ToString());
+                                switch (pos)
+                                {
+                                    case 1:
+                                        desk.player1 = player;
+                                        break;
+                                    case 2:
+                                        desk.player2 = player;
+                                        break;
+                                    case 3:
+                                        desk.player3 = player;
+                                        break;
+
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    else if (element.GetString() == "Standup")
+                    {
+                        Console.WriteLine(msg.GetProperty("msg").GetString());
+                        var deskId = msg.GetProperty("deskId").GetInt32();
+                        foreach (var desk in desks)
+                        {
+                            if (desk.Id.Equals(deskId))
+                            {
+                                var pos = msg.GetProperty("pos").GetInt32();
+                                Console.WriteLine(pos);
+                                switch (pos)
+                                {
+                                    case 1:
+                                        desk.player1 = null;
+                                        break;
+                                    case 2:
+                                        desk.player2 = null;
+                                        break;
+                                    case 3:
+                                        desk.player3 = null;
+                                        break;
+
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    else if (element.GetString() == "GameStarted")
+                    {
+                        Console.WriteLine(msg.GetProperty("msg").GetString());
+                        currentChannel.msgs.Insert(0, msg);
+                    }
+                    else if (element.GetString() == "GameOvered")
+                    {
+                        Console.WriteLine(msg.GetProperty("msg").GetString());
+                        currentChannel.msgs.Insert(0, msg);
+                    }
+                    else if (element.GetString() == "GamePlay")
+                    {
+
+                        ddzid = msg.GetProperty("ddzid").GetString();
+                        ddzdata = JsonSerializer.Deserialize<GameInfo>(msg.GetProperty("data").ToString());
+                        Console.WriteLine(msg.GetProperty("data").ToString());
+                        stage = ddzdata.stage;
+                        selectedPokers = new int?[55];
+                        if (playTips.Any())
+                            playTips.RemoveRange(0, playTips.Count);
+                        playTipsIndex = 0;
+
+                        if (this.stage == "游戏结束")
+                        {
+                            foreach (var ddz in this.ddzdata.players)
+                            {
+                                if (ddz.id == player.Nick)
+                                {
+                                    this.player.Score += ddz.score;
+                                    break;
+                                }
+                            }
+
+                        }
+
+                        if (this.ddzdata.operationTimeoutSeconds > 0 && this.ddzdata.operationTimeoutSeconds < 100)
+                            await this.operationTimeoutTimer();
+                    }
+                    else if (element.GetString() == "chanmsg")
+                    {
+                        currentChannel.msgs.Insert(0, msg);
+                        if (currentChannel.msgs.Count > 120)
+                            currentChannel.msgs.RemoveRange(100, 20);
+                    }
+
+                }
+                //Console.WriteLine("StateHasChanged");
+                StateHasChanged();
+                Console.WriteLine("onmessage_end");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"onmessage_ex_{ex.Message}_{msgobjer}");
+        }
+
+    }
+
+    private async Task SendChannelMsg(inputChannelMsg msg)
+    {
+        await ApiService.SendChannelMsg(msg, player.Id, player.Nick, this.currentChannel.chan);
+    }
+
+
+    private CancellationTokenSource timernnnxx { get; set; }
+
+    //js setTimeout
+    private async Task setTimeout(Func<Task> action, int time)
+    {
+        try
+        {
+            timernnnxx = new CancellationTokenSource();
+            await Task.Delay(time, timernnnxx.Token);
+            await action?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"setTimeout_{ex.Message}");
+        }
+
+    }
+    private async Task operationTimeoutTimer()
+    {
+        Console.WriteLine("operationTimeoutTimer_" + this.ddzdata.operationTimeoutSeconds);
+        if (timernnnxx != null)
+        {
+            timernnnxx.Cancel(false);
+            Console.WriteLine("operationTimeoutTimer 取消");
+        }
+        this.ddzdata.operationTimeoutSeconds--;
+        StateHasChanged();
+        if (this.ddzdata.operationTimeoutSeconds > 0)
+        {
+            await setTimeout(this.operationTimeoutTimer, 1000);
+        }
+    }
+    //private void clickPoker(int pk)
+    //{
+    //    if (selectedPokers) selectedPokers.RemoveAt(pk);
+    //    else selectedPokers[pk] = 1;
+    //}
+    private void mousedownPoker(GamePlayer player, int index, int pk)
+    {
+        mouseDownPlayer = player;
+        mouseDownPlayerIndex = index;
+    }
+    private void mousemovePoker(GamePlayer player, int index, int pk)
+    {
+
+    }
+    private void mouseupPoker(GamePlayer player, int index, int pk)
+    {
+        if (mouseDownPlayer.id == player.id)
+        {
+            var min = Math.Min(mouseDownPlayerIndex, index);
+            var max = Math.Max(mouseDownPlayerIndex, index);
+            for (var a = min; a <= max; a++)
+            {
+                if (this.selectedPokers[player.poker[a]].HasValue) this.selectedPokers[player.poker[a]] = null;
+                else this.selectedPokers[player.poker[a]] = 1;
+            }
+            this.updateindex++;
+        }
+    }
+
+    private async Task SelectLandlord(string playerId, decimal multiple)
+    {
+        await ApiService.SelectLandlord(this.ddzid, playerId, multiple);
+    }
+
+    private async Task SelectFarmer(string playerId)
+    {
+        await ApiService.SelectFarmer(this.ddzid, playerId);
+    }
+
+    private async Task Play(string playerId)
+    {
+        List<int> poker = new List<int>();
+        var allpoker = this.ddzdata.players[this.ddzdata.playerIndex].poker;
+        for (var b = 0; b < allpoker.Count; b++)
+        {
+            if (this.selectedPokers[allpoker[b]].HasValue)
+            {
+                poker.Add(allpoker[b]);
+            }
+        }
+
+        await ApiService.Play(this.ddzid, playerId, poker);
+    }
+
+    private async Task Pass(string playerId)
+    {
+        await ApiService.Pass(this.ddzid, playerId);
+    }
+
+    private async Task PlayTips(string playerId)
+    {
+        if (!this.playTips.Any())
+        {
+            var rt = await ApiService.PlayTips(this.ddzid, playerId);
+            this.selectedPokers = new int?[55];
+            playTips.RemoveRange(0, playTips.Count);
+            this.playTipsIndex = 0;
+
+            for (var a = 0; a < rt.Count; a++) this.playTips.Add(rt[a]);
+            if (this.playTips.Count == 0)
+            {
+                await this.Pass(playerId);
+            }
+            else
+            {
+                this.NextPlayTips();
+            }
+        }
+        else
+        {
+            this.NextPlayTips();
+        }
+    }
+
+    private void NextPlayTips()
+    {
+        if (this.playTipsIndex >= this.playTips.Count) return;
+        this.selectedPokers = new int?[55];
+        this.updateindex++;
+        var tips = this.playTips[this.playTipsIndex];
+        for (var a = 0; a < tips.Count(); a++) this.selectedPokers[tips[a]] = 1;
+        this.updateindex++;
+        this.playTipsIndex++;
+        if (this.playTipsIndex >= this.playTips.Count) this.playTipsIndex = 0;
+    }
+
+    private async Task CancelAutoPlay()
+    {
+        await ApiService.CancelAutoPlay(this.ddzid, player.Id);
+    }
+}

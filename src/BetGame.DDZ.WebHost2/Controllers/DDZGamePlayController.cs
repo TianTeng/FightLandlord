@@ -251,7 +251,7 @@ namespace BetGame.DDZ.WebHost2.Controllers
         {
             if (players == null)
                 players = RedisHelper.HGet<Player[]>($"ddz_gameplay_ht{game.Id}", "players");
-
+          
             foreach (var player in players)
             {
                 ImHelper.SendMessage(Guid.Empty, new[] { player.Id }, new

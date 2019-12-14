@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -9,10 +9,12 @@
     <PackageReference Include="FreeSql.Extensions.BaseEntity" Version="0.12.9" />
     <PackageReference Include="FreeSql.Provider.Sqlite" Version="0.12.9" />
     <PackageReference Include="ImCore" Version="1.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.Server" Version="3.1.0-preview4.19579.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\BetGame.DDZ.WasmClient\BetGame.DDZ.WasmClient.csproj" />
     <ProjectReference Include="..\BetGame.DDZ\BetGame.DDZ.csproj" />
   </ItemGroup>
 

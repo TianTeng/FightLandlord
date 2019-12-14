@@ -1,0 +1,68 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Blazor(WebAssembly) + .NETCore 斗地主</title>
+    <base href="/" />
+    <link rel="stylesheet" href="/css/bootstrap/dist/css/bootstrap.min.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <style>
+        body {
+            margin: 0px;
+            padding: 0px;
+            font-size: 14px;
+        }
+
+        @font-face {
+            font-family: PokerFace;
+            src: url('poker.ttf');
+        }
+
+        .glyphicon:after {
+            content: attr(name);
+            margin-left: -13px;
+        }
+
+        .poker {
+            font-family: PokerFace;
+            font-size: 120px;
+            /* background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGgAAACMCAIAAAAfq3tiAAABqklEQVR4Ae3SsQ0AIBADMWD/nR8xAlc7/TVW9sws+xc4/4niCYCLPwAHLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmceCiQMw8DlwUiJnHgYsCMfM4cFEgZh4HLgrEzOPARYGYeRy4KBAzjwMXBWLmcRHuAucxBBUEgVosAAAAAElFTkSuQmCC");
+        background-position: 14px 14px;
+        background-repeat: no-repeat; */
+            position: absolute;
+            background-color: white;
+            margin: 0px;
+            padding: 0px;
+            width: 106px;
+            height: 142px;
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none; /* Chrome/Safari/Opera */
+            -khtml-user-select: none; /* Konqueror */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently not supported by any browser */
+        }
+
+            .poker span {
+                position: absolute;
+                top: -13px;
+            }
+
+        button {
+            padding: 9px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="p-5">
+        <app>Loading...</app>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="js/websockethelper.js"></script>
+
+</body>
+
+</html>
