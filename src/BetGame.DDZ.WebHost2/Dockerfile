@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1.0-disco
+FROM mcr.microsoft.com/dotnet/core/aspnet:3.1.0-bionic
 WORKDIR /app
 EXPOSE 80
 COPY . .
