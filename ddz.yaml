@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ddz.deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ddz
+  template:
+    metadata:
+      labels:
+        app: ddz
+    spec:
+      containers:
+      - name: ddz
+        image: registry.cn-hangzhou.aliyuncs.com/xfcode/ddz:112
+        env:
+        - name: redis
+          value: "redis.default.svc.cluster.local:6379"
+        - name: imserver
+          value: "39.106.159.180:31000"
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ddz
+  labels:
+    app: ddz
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    nodePort: 31000
+  #将设置的nodePort端口映射到宿主机上-云环境应该使用负载均衡？
+  type: NodePort
+  externalTrafficPolicy: Local
+  selector:
+    app: ddz
