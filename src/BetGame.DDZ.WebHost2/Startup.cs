@@ -69,12 +69,12 @@ namespace BetGame.DDZ.WebHost2
 
             app.UseDeveloperExceptionPage();
 
-            //app.UseImServer(new ImServerOptions
-            //{
-            //    Redis = RedisHelper.Instance,
-            //    Servers = new[] { Configuration["imserver"] }, //集群配置
-            //    Server = Configuration["imserver"]
-            //});
+            app.UseImServer(new ImServerOptions
+            {
+                Redis = RedisHelper.Instance,
+                Servers = new[] { Configuration["imserver"] }, //集群配置
+                Server = Configuration["imserver"]
+            });
 
             app.UseStaticFiles();
             app.UseClientSideBlazorFiles<WasmClient.Startup>();
