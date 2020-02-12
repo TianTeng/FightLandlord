@@ -1,7 +1,7 @@
-﻿{
+{
   "iisSettings": {
-    "windowsAuthentication": false, 
-    "anonymousAuthentication": true, 
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
     "iisExpress": {
       "applicationUrl": "http://localhost:61244",
       "sslPort": 0
@@ -18,10 +18,10 @@
     "BetGame.DDZ.WebHost2": {
       "commandName": "Project",
       "launchBrowser": true,
-      "applicationUrl": "http://localhost:61244",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      },
+      "applicationUrl": "http://localhost:61244"
     }
   }
 }

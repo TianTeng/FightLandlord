@@ -1,7 +1,7 @@
 ﻿@page "/"
 @inject HttpClient Http
 @inject LocalStorage localstorage
-@*@inject ClientWebSocket clientWebSocket*@
+@inject ClientWebSocket clientWebSocket
 @inject ApiService ApiService
 @inject IAuthorizationService AuthorizationService
 @inject FunctionHelper FunctionHelper
@@ -232,31 +232,40 @@
                                     mm = JsonSerializer.Deserialize<inputChannelMsg>(msg.GetProperty("msg").ToString());
                                 }
                                 catch { }
-                                <div style="margin-bottom:9px;">
+                            <div style="margin-bottom:9px;">
 
-                                    @if (mm?.type == "welcome")
+                                @if (mm?.type == "welcome")
+                                {
+                                    <div>欢迎 @(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) 加入</div>
+                                }
+                                else if (mm?.type == "text")
+                                {
+                                    try
                                     {
-                                        <div>欢迎 @(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) 加入</div>
-                                    }
-                                    else if (mm?.type == "text")
-                                    {
-                                        var time = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddMilliseconds(Convert.ToDouble(msg.GetProperty("time").ToString()));
+                                        var time = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddMilliseconds(Convert.ToDouble(msg.GetProperty("time").ToString()));
                                         <div>
-                                            <div style="color:#aaa;">@(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) @time.ToString() 说：@mm.content</div>
+                                            <div style="color:#aaa;">@(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) @time.ToLocalTime().ToString() 说：@mm.content</div>
                                         </div>
                                     }
-                                    else if (msg.GetProperty("type").ValueKind != JsonValueKind.Null && msg.GetProperty("msg").ValueKind != JsonValueKind.Null)
+                                    catch
                                     {
                                         <div>
-                                            @msg.GetProperty("msg").ToString()
+                                            <div style="color:#aaa;">@(msg.GetProperty("senderNick").GetString() ?? msg.GetProperty("sender").GetString()) 未知时间 说：@mm.content</div>
                                         </div>
                                     }
-                                    else
-                                    {<div>
-                                            @msg.ToString()
-                                        </div>
-                                    }
-                                </div>
+                                }
+                                else if (msg.GetProperty("type").ValueKind != JsonValueKind.Null && msg.GetProperty("msg").ValueKind != JsonValueKind.Null)
+                                {
+                                    <div>
+                                        @msg.GetProperty("msg").ToString()
+                                    </div>
+                                }
+                                else
+                                {<div>
+                                        @msg.ToString()
+                                    </div>
+                                }
+                            </div>
                             }
                         </div>
                     </div>
@@ -302,16 +311,20 @@
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
 
-    //protected override async Task OnInitializedAsync()
+    //protected override  Task OnInitializedAsync()
     //{
-    //    await GetPlayer();
+    //    Console.WriteLine("OnInitializedAsync");
+    //    wsConnectState = 1010;
+    //    return Task.CompletedTask;
     //}
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            Console.WriteLine("OnAfterRenderAsync");
             await GetPlayer();
-            wsConnectState = 1010;
+
             //onopen();
             //onclose();
             //onmessage();
@@ -424,9 +437,39 @@
     {
         Console.WriteLine("ConnectWebsocket");
         var serviceurl = await ApiService.ConnectWebsocket();
-        //TODO ConnectWebsocket
         if (!string.IsNullOrWhiteSpace(serviceurl))
-            await _jsRuntime.InvokeAsync<string>("newWebSocket", serviceurl, DotNetObjectReference.Create(this));
+        {
+            wsConnectState = 1010;
+            await clientWebSocket.ConnectAsync(new Uri(serviceurl),default);
+            CallBacker();
+            await onopen();
+
+            //await _jsRuntime.InvokeAsync<string>("newWebSocket", serviceurl, DotNetObjectReference.Create(this));
+        }
+    }
+    private async Task CallBacker()
+    {
+        List<byte> vs = new List<byte>();
+        while (true)
+        {
+            Memory<byte> memory = new Memory<byte>(new byte[1024]);
+            var res = await clientWebSocket.ReceiveAsync(memory, default);
+            var bt = memory.ToArray().Take(res.Count);
+            vs.AddRange(bt);
+            if (res.EndOfMessage)
+            {
+                if (res.MessageType == WebSocketMessageType.Close)
+                {
+                    onclose();
+                }
+                else
+                {
+                    var jsonDocument = JsonSerializer.Deserialize<object>(vs.ToArray());
+                    vs.Clear();
+                    await onmessage(jsonDocument);
+                }
+            }
+        }
     }
     private async Task Sitdown(int deskId, int pos)
     {

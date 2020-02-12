@@ -19,6 +19,13 @@
 * chrome
 * redis-server(本地环境)
 
+# 更新
+
+* 2020-02-12
+
+升级到3.2.0-preview1.20073.1，并使用ClientWebSocket替换js的websocket
+
+
 # 已实现功能
 
 * 洗牌

@@ -77,14 +77,14 @@ namespace BetGame.DDZ.WebHost2
             });
 
             app.UseStaticFiles();
-            app.UseClientSideBlazorFiles<WasmClient.Startup>();
+            app.UseClientSideBlazorFiles<WasmClient.Program>();
 
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapDefaultControllerRoute();
-                endpoints.MapFallbackToClientSideBlazor<WasmClient.Startup>("index.html");
+                endpoints.MapFallbackToClientSideBlazor<WasmClient.Program>("index.html");
             });
             //app.UseDefaultFiles();
             //app.UseStaticFiles();
