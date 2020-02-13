@@ -436,18 +436,22 @@
     public async Task ConnectWebsocket()
     {
         Console.WriteLine("ConnectWebsocket");
+        //获取Websocket链接
         var serviceurl = await ApiService.ConnectWebsocket();
         if (!string.IsNullOrWhiteSpace(serviceurl))
         {
             wsConnectState = 1010;
+            //链接Websocket
             await clientWebSocket.ConnectAsync(new Uri(serviceurl),default);
-            CallBacker();
+            //后台接收消息
+            ReceiveMessages();
+            //链接Websocket时调用
             await onopen();
 
             //await _jsRuntime.InvokeAsync<string>("newWebSocket", serviceurl, DotNetObjectReference.Create(this));
         }
     }
-    private async Task CallBacker()
+    private async Task ReceiveMessages()
     {
         List<byte> vs = new List<byte>();
         while (true)
@@ -468,6 +472,8 @@
                     vs.Clear();
                     await onmessage(jsonDocument);
                 }
+                //当前方法在后台执行，所以我们需要手动更新UI
+                StateHasChanged();
             }
         }
     }
@@ -514,7 +520,6 @@
     {
         Console.WriteLine("websocket disconnect");
         wsConnectState = 0;
-        StateHasChanged();
     }
 
     [JSInvokable]
@@ -629,8 +634,6 @@
                     }
 
                 }
-                //Console.WriteLine("StateHasChanged");
-                StateHasChanged();
                 Console.WriteLine("onmessage_end");
             }
         }
