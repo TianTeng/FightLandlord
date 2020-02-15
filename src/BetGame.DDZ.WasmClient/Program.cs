@@ -20,10 +20,12 @@ namespace BetGame.DDZ.WasmClient
             builder.Services.AddScoped<CustomAuthStateProvider>();
             builder.Services.AddScoped<AuthenticationStateProvider>(s => s.GetRequiredService<CustomAuthStateProvider>());
             //在wasm中没有默认配置，所以需要设置一下
-            builder.Services.AddAuthorizationCore(c=> {
-                c.AddPolicy("default", a => a.RequireAuthenticatedUser());
-                c.DefaultPolicy = c.GetPolicy("default");
-            });
+            builder.Services.AddOptions();
+            builder.Services.AddAuthorizationCore();
+            //builder.Services.AddAuthorizationCore(c=> {
+            //    c.AddPolicy("default", a => a.RequireAuthenticatedUser());
+            //    c.DefaultPolicy = c.GetPolicy("default");
+            //});
             builder.Services.AddScoped(sp=>new ClientWebSocket());
 
             builder.RootComponents.Add<App>("app");
