@@ -18,9 +18,9 @@ namespace BetGame.DDZ.WasmClient.Services
         //ClientWebSocket _clientWebSocket;
         public ApiService(HttpClient httpclient, LocalStorage localStorage, FunctionHelper functionHelper/*, ClientWebSocket clientWebSocket*/)
         {
-            if(!string.IsNullOrWhiteSpace(ClientDefaults.ApiHost))
-            httpclient.BaseAddress = new Uri(ClientDefaults.ApiHost);
-           // httpclient.DefaultRequestHeaders.Add("content-type", ClientDefaults.formcontentType);
+            if (!string.IsNullOrWhiteSpace(ClientDefaults.ApiHost))
+                httpclient.BaseAddress = new Uri(ClientDefaults.ApiHost);
+            // httpclient.DefaultRequestHeaders.Add("content-type", ClientDefaults.formcontentType);
             _httpclient = httpclient;
             _localStorage = localStorage;
             _functionHelper = functionHelper;
@@ -29,34 +29,45 @@ namespace BetGame.DDZ.WasmClient.Services
         private string playerId;
         public async Task<Player> GetPlayer()
         {
-            playerId = await _localStorage.GetAsync<string>(ClientDefaults.playerId);
-            if (string.IsNullOrWhiteSpace(playerId) || playerId == "undefined")
+            try
             {
-                return default;
-            }
-            else
-            {
-                var apireturn = await _httpclient.PostFormAsync<APIReturn>("/ddz/GetPlayer", $"playerId={playerId}");
-                if (apireturn != null && !apireturn.Success)
+
+                playerId = await _localStorage.GetAsync<string>(ClientDefaults.playerId);
+                if (string.IsNullOrWhiteSpace(playerId) || playerId == "undefined")
                 {
-                    await _functionHelper.Alert(apireturn.Message);
                     return default;
                 }
-                if (apireturn != null && apireturn.Data != null && apireturn.Data.Any() && apireturn.Data.TryGetValue("player", out var playerstr))
+                else
                 {
-                    var player = JsonSerializer.Deserialize<Player>(playerstr.ToString());
-                    if (player != null && !string.IsNullOrWhiteSpace(player.Nick))
+                    var apireturn = await _httpclient.PostFormAsync<APIReturn>("/ddz/GetPlayer", $"playerId={playerId}");
+                    if (apireturn != null && !apireturn.Success)
                     {
-                        playerId = player.Id;
-                        return player;
+                        await _functionHelper.Alert(apireturn.Message);
+                        return default;
+                    }
+                    if (apireturn != null && apireturn.Data != null && apireturn.Data.Any() && apireturn.Data.TryGetValue("player", out var playerstr))
+                    {
+                        var player = JsonSerializer.Deserialize<Player>(playerstr.ToString());
+                        if (player != null && !string.IsNullOrWhiteSpace(player.Nick))
+                        {
+                            playerId = player?.Id;
+                            if(string.IsNullOrWhiteSpace(playerId))
+                                await _localStorage.DeleteAsync(ClientDefaults.playerId);
+                            return player;
+                        }
                     }
                 }
+                return default;
             }
-            return default;
+            catch
+            {
+                await _localStorage.DeleteAsync(ClientDefaults.playerId);
+                return default;
+            }
         }
         public async Task<Player> GetOrAddPlayer(string nick)
         {
-            
+
             var apireturn = await _httpclient.PostFormAsync<APIReturn>("/ddz/GetOrAddPlayer", $"nick={nick}");
             if (apireturn != null && !apireturn.Success)
             {
@@ -75,7 +86,7 @@ namespace BetGame.DDZ.WasmClient.Services
         }
         public async Task<List<Desk>> GetDesks()
         {
-            var apireturn = await _httpclient.PostFormAsync<APIReturn>("/ddz/GetDesks", $"playerId={playerId}" );
+            var apireturn = await _httpclient.PostFormAsync<APIReturn>("/ddz/GetDesks", $"playerId={playerId}");
             if (apireturn != null && !apireturn.Success)
             {
                 await _functionHelper.Alert(apireturn.Message);
@@ -147,8 +158,8 @@ namespace BetGame.DDZ.WasmClient.Services
         public async Task Play(string ddzid, string playerId, IEnumerable<int> poker)
         {
             if (poker.Count() == 0)
-            { 
-                await _functionHelper.Alert("请选择要出的牌"); 
+            {
+                await _functionHelper.Alert("请选择要出的牌");
             }
             else
             {
