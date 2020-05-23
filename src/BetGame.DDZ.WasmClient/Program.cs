@@ -1,10 +1,11 @@
-﻿using System.Net.WebSockets;
-using System.Threading.Tasks;
-using BetGame.DDZ.WasmClient.Services;
-using Microsoft.AspNetCore.Blazor.Hosting;
-using Microsoft.AspNetCore.Blazor.Http;
+﻿using BetGame.DDZ.WasmClient.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Net.Http;
+using System.Net.WebSockets;
+using System.Threading.Tasks;
 
 namespace BetGame.DDZ.WasmClient
 {
@@ -28,9 +29,9 @@ namespace BetGame.DDZ.WasmClient
             //});
             builder.Services.AddScoped(sp=>new ClientWebSocket());
 
+            builder.Services.AddTransient(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
             builder.RootComponents.Add<App>("app");
 
-            WebAssemblyHttpMessageHandlerOptions.DefaultCredentials = FetchCredentialsOption.Include;
             await builder.Build().RunAsync();
         }
     }

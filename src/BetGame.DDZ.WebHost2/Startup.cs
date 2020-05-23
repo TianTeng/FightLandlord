@@ -1,16 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 using FreeSql;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
+using System;
+using System.Diagnostics;
+using System.Linq;
 
 namespace BetGame.DDZ.WebHost2
 {
@@ -76,15 +72,15 @@ namespace BetGame.DDZ.WebHost2
                 Server = Configuration["imserver"]
             });
 
+            app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();
-            app.UseClientSideBlazorFiles<WasmClient.Program>();
 
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapDefaultControllerRoute();
-                endpoints.MapFallbackToClientSideBlazor<WasmClient.Program>("index.html");
+                endpoints.MapFallbackToFile("index.html");
             });
             //app.UseDefaultFiles();
             //app.UseStaticFiles();
